@@ -2,13 +2,20 @@ import React, { useEffect, useState } from "react";
 import { useRecoilState } from "recoil";
 import { modalState, postIdState } from "../atom/modalAtom";
 import Modal from "react-modal";
+import { useRouter } from "next/router";
 import {
   EmojiHappyIcon,
   PhotographIcon,
   XIcon,
 } from "@heroicons/react/outline";
 import { db } from "../firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
 import { useSession } from "next-auth/react";
 import Moment from "react-moment";
 function CommentModal() {
@@ -17,12 +24,26 @@ function CommentModal() {
   const [post, setPost] = useState({});
   const { data: session } = useSession();
   const [input, setInput] = useState("");
-  function sendComment() {}
+  const router = useRouter();
   useEffect(() => {
     onSnapshot(doc(db, "posts", postId), (snapshot) => {
       setPost(snapshot);
     });
   }, [postId, db]);
+  async function sendComment() {
+    await addDoc(collection(db, "posts", postId, "comments"), {
+      comment: input,
+      name: session?.user?.name,
+      username: session?.user?.username,
+      userImg: session?.user?.image,
+      timestamp: serverTimestamp(),
+    });
+    console.log("TUsam hahaha");
+    setOpen(false);
+    setInput("");
+    router.push(`posts/${postId}`);
+  }
+
   return (
     <div>
       {open && (
