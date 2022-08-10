@@ -37,11 +37,12 @@ function CommentModal() {
       username: session?.user?.username,
       userImg: session?.user?.image,
       timestamp: serverTimestamp(),
+      userId: session?.user?.uid,
     });
     console.log("TUsam hahaha");
     setOpen(false);
     setInput("");
-    router.push(`posts/${postId}`);
+    router.push(`/posts/${postId}`);
   }
 
   return (
