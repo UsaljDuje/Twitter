@@ -3,8 +3,6 @@ import {
   PhotographIcon,
   XIcon,
 } from "@heroicons/react/outline";
-import { useSession, signOut } from "next-auth/react";
-import { useRef, useState } from "react";
 import {
   addDoc,
   collection,
@@ -12,27 +10,36 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
-function Input() {
-  const { data: session } = useSession();
+
+import { useState, useRef } from "react";
+import { db, storage } from "../firebase";
+import { useRecoilState } from "recoil";
+import { userState } from "../atom/userAtom";
+import { signOut, getAuth } from "firebase/auth";
+export default function Input() {
   const [input, setInput] = useState("");
+  const [currentUser, setCurrentUser] = useRecoilState(userState);
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const filePickerRef = useRef(null);
+  const auth = getAuth();
+
   const sendPost = async () => {
     if (loading) return;
     setLoading(true);
+
     const docRef = await addDoc(collection(db, "posts"), {
-      id: session.user.uid,
+      id: currentUser.uid,
       text: input,
-      userimg: session.user.image,
+      userImg: currentUser.userImg,
       timestamp: serverTimestamp(),
-      name: session.user.name,
-      username: session.user.username,
+      name: currentUser.name,
+      username: currentUser.username,
     });
 
     const imageRef = ref(storage, `posts/${docRef.id}/image`);
+
     if (selectedFile) {
       await uploadString(imageRef, selectedFile, "data_url").then(async () => {
         const downloadURL = await getDownloadURL(imageRef);
@@ -52,35 +59,42 @@ function Input() {
     if (e.target.files[0]) {
       reader.readAsDataURL(e.target.files[0]);
     }
+
     reader.onload = (readerEvent) => {
       setSelectedFile(readerEvent.target.result);
     };
   };
 
+  function onSignOut() {
+    signOut(auth);
+    setCurrentUser(null);
+  }
+
   return (
     <>
-      {session && (
-        <div className="flex border-b border-gray-200 p-3 space-x-3">
+      {currentUser && (
+        <div className="flex  border-b border-gray-200 p-3 space-x-3">
           <img
-            className="rounded-full h-11 w-11 cursor-pointer hover:brightness-95"
-            src={session?.user?.image}
-            onClick={signOut}
+            onClick={onSignOut}
+            src={currentUser?.userImg}
+            alt="user-img"
+            className="h-11 w-11 rounded-full cursor-pointer hover:brightness-95"
           />
           <div className="w-full divide-y divide-gray-200">
             <div className="">
               <textarea
-                className="w-full border-none focus:ring-0 text-lg placeholder-gray-700 tracking-wide min-h-[50px] text-gray-7002"
+                className="w-full border-none focus:ring-0 text-lg placeholder-gray-700 tracking-wide min-h-[50px] text-gray-700"
                 rows="2"
-                placeholder="Whats happening"
+                placeholder="What's happening?"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-              />
+              ></textarea>
             </div>
             {selectedFile && (
               <div className="relative">
                 <XIcon
-                  className="h-7 text-black absolute cursor-pointer shadow-mdrounded-full border border-white m-1"
                   onClick={() => setSelectedFile(null)}
+                  className="border h-7 text-black absolute cursor-pointer shadow-md border-white m-1 rounded-full"
                 />
                 <img
                   src={selectedFile}
@@ -88,20 +102,23 @@ function Input() {
                 />
               </div>
             )}
-            <div className="items-center pt-2.5 flex justify-between">
+            <div className="flex items-center justify-between pt-2.5">
               {!loading && (
                 <>
                   <div className="flex">
-                    <div onClick={() => filePickerRef.current.click()}>
-                      <PhotographIcon className="w-10 h-10 hoverEffect p-2 text-sky-500 hover:bg-sky-100" />
+                    <div
+                      className=""
+                      onClick={() => filePickerRef.current.click()}
+                    >
+                      <PhotographIcon className="h-10 w-10 hoverEffect p-2 text-sky-500 hover:bg-sky-100" />
                       <input
                         type="file"
-                        className="hidden"
+                        hidden
                         ref={filePickerRef}
                         onChange={addImageToPost}
                       />
                     </div>
-                    <EmojiHappyIcon className="w-10 h-10 hoverEffect p-2 text-sky-500 hover:bg-sky-100" />
+                    <EmojiHappyIcon className="h-10 w-10 hoverEffect p-2 text-sky-500 hover:bg-sky-100" />
                   </div>
                   <button
                     onClick={sendPost}
@@ -119,5 +136,3 @@ function Input() {
     </>
   );
 }
-
-export default Input;
